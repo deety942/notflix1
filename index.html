@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notflix</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #141414;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: #000;
+            padding: 20px;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2em;
+            color: #e50914;
+        }
+        #search-bar {
+            padding: 8px;
+            width: 250px;
+            background: #333;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+        }
+        #admin-login, #export-html {
+            background: #e50914;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        #export-html {
+            display: none;
+        }
+        .admin-mode #export-html {
+            display: inline-block;
+        }
+        #admin-login:hover, #export-html:hover {
+            background: #f40612;
+        }
+        .content {
+            margin-top: 80px;
+            padding: 20px;
+        }
+        .category {
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .category h2 {
+            font-size: 1.5em;
+            margin: 0 0 10px;
+            color: #fff;
+        }
+        .add-movie-btn {
+            display: none;
+            background: #e50914;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+        .admin-mode .add-movie-btn {
+            display: block;
+        }
+        .add-movie-btn:hover {
+            background: #f40612;
+        }
+        .movie-row {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding-bottom: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #e50914 #333;
+        }
+        .movie-row::-webkit-scrollbar {
+            height: 8px;
+        }
+        .movie-row::-webkit-scrollbar-thumb {
+            background: #e50914;
+            border-radius: 4px;
+        }
+        .movie-row::-webkit-scrollbar-track {
+            background: #333;
+        }
+        .movie-item {
+            flex: 0 0 auto;
+            width: 150px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            transition: transform 0.3s;
+        }
+        .movie-item:hover {
+            transform: scale(1.05);
+        }
+        .movie-item .poster {
+            height: 225px;
+            background: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            color: #999;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+        }
+        .movie-item .info {
+            padding: 10px;
+            position: relative;
+        }
+        .movie-item h3 {
+            margin: 0 0 5px;
+            font-size: 1em;
+            color: #fff;
+        }
+        .movie-item p {
+            margin: 0;
+            font-size: 0.8em;
+            color: #b3b3b3;
+        }
+        .movie-item .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .movie-item button {
+            background: #e50914;
+            color: #fff;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            flex: 1;
+            font-family: inherit;
+            border-radius: 4px;
+        }
+        .movie-item button:hover {
+            background: #f40612;
+        }
+        .movie-item .edit-stream-btn, .movie-item .edit-poster-btn {
+            display: none;
+            background: #666;
+        }
+        .movie-item .edit-stream-btn:hover, .movie-item .edit-poster-btn:hover {
+            background: #888;
+        }
+        .admin-mode .edit-stream-btn, .admin-mode .edit-poster-btn {
+            display: block;
+        }
+        /* Modal Player */
+        .player-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .player-box {
+            background: #000;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        .player-box video {
+            width: 100%;
+            height: auto;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #e50914;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .close-btn:hover {
+            background: #f40612;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Notflix</h1>
+        <div>
+            <input type="text" id="search-bar" placeholder="Search movies...">
+            <button id="admin-login" onclick="adminLogin()">Admin Login</button>
+            <button id="export-html" onclick="exportHTML()">Export HTML</button>
+        </div>
+    </header>
+    <div class="content">
+        <!-- Recent Releases -->
+        <div class="category" data-category="recent-releases">
+            <h2>Recent Releases</h2>
+            <button class="add-movie-btn" onclick="addMovie('recent-releases')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="wolf-man">
+                    <div class="poster">Wolf Man</div>
+                    <div class="info">
+                        <h3>Wolf Man</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="back-in-action">
+                    <div class="poster">Back in Action</div>
+                    <div class="info">
+                        <h3>Back in Action</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="captain-america-brave-new-world">
+                    <div class="poster">Captain America: Brave New World</div>
+                    <div class="info">
+                        <h3>Captain America: Brave New World</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="flight-risk">
+                    <div class="poster">Flight Risk</div>
+                    <div class="info">
+                        <h3>Flight Risk</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="presence">
+                    <div class="poster">Presence</div>
+                    <div class="info">
+                        <h3>Presence</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="last-breath">
+                    <div class="poster">Last Breath</div>
+                    <div class="info">
+                        <h3>Last Breath</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="bridget-jones-mad-about-the-boy">
+                    <div class="poster">Bridget Jones: Mad About the Boy</div>
+                    <div class="info">
+                        <h3>Bridget Jones: Mad About the Boy</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="deadpool-wolverine">
+                    <div class="poster">Deadpool & Wolverine</div>
+                    <div class="info">
+                        <h3>Deadpool & Wolverine</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="inside-out-2">
+                    <div class="poster">Inside Out 2</div>
+                    <div class="info">
+                        <h3>Inside Out 2</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="dune-part-two">
+                    <div class="poster">Dune: Part Two</div>
+                    <div class="info">
+                        <h3>Dune: Part Two</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Action -->
+        <div class="category" data-category="action">
+            <h2>Action</h2>
+            <button class="add-movie-btn" onclick="addMovie('action')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="die-hard">
+                    <div class="poster">Die Hard</div>
+                    <div class="info">
+                        <h3>Die Hard</h3>
+                        <p>1988</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="mad-max-fury-road">
+                    <div class="poster">Mad Max: Fury Road</div>
+                    <div class="info">
+                        <h3>Mad Max: Fury Road</h3>
+                        <p>2015</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-dark-knight">
+                    <div class="poster">The Dark Knight</div>
+                    <div class="info">
+                        <h3>The Dark Knight</h3>
+                        <p>2008</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="captain-america-brave-new-world">
+                    <div class="poster">Captain America: Brave New World</div>
+                    <div class="info">
+                        <h3>Captain America: Brave New World</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="back-in-action">
+                    <div class="poster">Back in Action</div>
+                    <div class="info">
+                        <h3>Back in Action</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="flight-risk">
+                    <div class="poster">Flight Risk</div>
+                    <div class="info">
+                        <h3>Flight Risk</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="deadpool-wolverine">
+                    <div class="poster">Deadpool & Wolverine</div>
+                    <div class="info">
+                        <h3>Deadpool & Wolverine</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="terminator-2-judgment-day">
+                    <div class="poster">Terminator 2: Judgment Day</div>
+                    <div class="info">
+                        <h3>Terminator 2: Judgment Day</h3>
+                        <p>1991</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Sci-Fi -->
+        <div class="category" data-category="sci-fi">
+            <h2>Sci-Fi</h2>
+            <button class="add-movie-btn" onclick="addMovie('sci-fi')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="star-wars-a-new-hope">
+                    <div class="poster">Star Wars: A New Hope</div>
+                    <div class="info">
+                        <h3>Star Wars: A New Hope</h3>
+                        <p>1977</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-matrix">
+                    <div class="poster">The Matrix</div>
+                    <div class="info">
+                        <h3>The Matrix</h3>
+                        <p>1999</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="blade-runner">
+                    <div class="poster">Blade Runner</div>
+                    <div class="info">
+                        <h3>Blade Runner</h3>
+                        <p>1982</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="inception">
+                    <div class="poster">Inception</div>
+                    <div class="info">
+                        <h3>Inception</h3>
+                        <p>2010</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="avatar">
+                    <div class="poster">Avatar</div>
+                    <div class="info">
+                        <h3>Avatar</h3>
+                        <p>2009</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="interstellar">
+                    <div class="poster">Interstellar</div>
+                    <div class="info">
+                        <h3>Interstellar</h3>
+                        <p>2014</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="alien">
+                    <div class="poster">Alien</div>
+                    <div class="info">
+                        <h3>Alien</h3>
+                        <p>1979</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="dune-part-two">
+                    <div class="poster">Dune: Part Two</div>
+                    <div class="info">
+                        <h3>Dune: Part Two</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Horror -->
+        <div class="category" data-category="horror">
+            <h2>Horror</h2>
+            <button class="add-movie-btn" onclick="addMovie('horror')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="the-exorcist">
+                    <div class="poster">The Exorcist</div>
+                    <div class="info">
+                        <h3>The Exorcist</h3>
+                        <p>1973</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="halloween">
+                    <div class="poster">Halloween</div>
+                    <div class="info">
+                        <h3>Halloween</h3>
+                        <p>1978</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-shining">
+                    <div class="poster">The Shining</div>
+                    <div class="info">
+                        <h3>The Shining</h3>
+                        <p>1980</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="it">
+                    <div class="poster">It</div>
+                    <div class="info">
+                        <h3>It</h3>
+                        <p>2017</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="get-out">
+                    <div class="poster">Get Out</div>
+                    <div class="info">
+                        <h3>Get Out</h3>
+                        <p>2017</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="wolf-man">
+                    <div class="poster">Wolf Man</div>
+                    <div class="info">
+                        <h3>Wolf Man</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="presence">
+                    <div class="poster">Presence</div>
+                    <div class="info">
+                        <h3>Presence</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="a-quiet-place">
+                    <div class="poster">A Quiet Place</div>
+                    <div class="info">
+                        <h3>A Quiet Place</h3>
+                        <p>2018</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Drama -->
+        <div class="category" data-category="drama">
+            <h2>Drama</h2>
+            <button class="add-movie-btn" onclick="addMovie('drama')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="the-godfather">
+                    <div class="poster">The Godfather</div>
+                    <div class="info">
+                        <h3>The Godfather</h3>
+                        <p>1972</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-shawshank-redemption">
+                    <div class="poster">The Shawshank Redemption</div>
+                    <div class="info">
+                        <h3>The Shawshank Redemption</h3>
+                        <p>1994</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="forrest-gump">
+                    <div class="poster">Forrest Gump</div>
+                    <div class="info">
+                        <h3>Forrest Gump</h3>
+                        <p>1994</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="pulp-fiction">
+                    <div class="poster">Pulp Fiction</div>
+                    <div class="info">
+                        <h3>Pulp Fiction</h3>
+                        <p>1994</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="parasite">
+                    <div class="poster">Parasite</div>
+                    <div class="info">
+                        <h3>Parasite</h3>
+                        <p>2019</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="last-breath">
+                    <div class="poster">Last Breath</div>
+                    <div class="info">
+                        <h3>Last Breath</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="schindlers-list">
+                    <div class="poster">Schindler's List</div>
+                    <div class="info">
+                        <h3>Schindler's List</h3>
+                        <p>1993</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="12-angry-men">
+                    <div class="poster">12 Angry Men</div>
+                    <div class="info">
+                        <h3>12 Angry Men</h3>
+                        <p>1957</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Comedy -->
+        <div class="category" data-category="comedy">
+            <h2>Comedy</h2>
+            <button class="add-movie-btn" onclick="addMovie('comedy')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="monty-python-and-the-holy-grail">
+                    <div class="poster">Monty Python and the Holy Grail</div>
+                    <div class="info">
+                        <h3>Monty Python and the Holy Grail</h3>
+                        <p>1975</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-big-lebowski">
+                    <div class="poster">The Big Lebowski</div>
+                    <div class="info">
+                        <h3>The Big Lebowski</h3>
+                        <p>1998</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="anchorman">
+                    <div class="poster">Anchorman</div>
+                    <div class="info">
+                        <h3>Anchorman</h3>
+                        <p>2004</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="the-hangover">
+                    <div class="poster">The Hangover</div>
+                    <div class="info">
+                        <h3>The Hangover</h3>
+                        <p>2009</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="superbad">
+                    <div class="poster">Superbad</div>
+                    <div class="info">
+                        <h3>Superbad</h3>
+                        <p>2007</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="inside-out-2">
+                    <div class="poster">Inside Out 2</div>
+                    <div class="info">
+                        <h3>Inside Out 2</h3>
+                        <p>2024</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="ghostbusters">
+                    <div class="poster">Ghostbusters</div>
+                    <div class="info">
+                        <h3>Ghostbusters</h3>
+                        <p>1984</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="bridget-jones-mad-about-the-boy">
+                    <div class="poster">Bridget Jones: Mad About the Boy</div>
+                    <div class="info">
+                        <h3>Bridget Jones: Mad About the Boy</h3>
+                        <p>2025</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Animation -->
+        <div class="category" data-category="animation">
+            <h2>Animation</h2>
+            <button class="add-movie-btn" onclick="addMovie('animation')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="the-lion-king">
+                    <div class="poster">The Lion King</div>
+                    <div class="info">
+                        <h3>The Lion King</h3>
+                        <p>1994</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="toy-story">
+                    <div class="poster">Toy Story</div>
+                    <div class="info">
+                        <h3>Toy Story</h3>
+                        <p>1995</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="finding-nemo">
+                    <div class="poster">Finding Nemo</div>
+                    <div class="info">
+                        <h3>Finding Nemo</h3>
+                        <p>2003</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="shrek">
+                    <div class="poster">Shrek</div>
+                    <div class="info">
+                        <h3>Shrek</h3>
+                        <p>2001</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="spirited-away">
+                    <div class="poster">Spirited Away</div>
+                    <div class="info">
+                        <h3>Spirited Away</h3>
+                        <p>2001</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="inside-out">
+                    <div class="poster">Inside Out</div>
+                    <div class="info">
+                        <h3>Inside Out</h3>
+                        <p>2015</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="moana">
+                    <div class="poster">Moana</div>
+                    <div class="info">
+                        <h3>Moana</h3>
+                        <p>2016</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="zootopia">
+                    <div class="poster">Zootopia</div>
+                    <div class="info">
+                        <h3>Zootopia</h3>
+                        <p>2016</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Romance -->
+        <div class="category" data-category="romance">
+            <h2>Romance</h2>
+            <button class="add-movie-btn" onclick="addMovie('romance')">Add Movie</button>
+            <div class="movie-row">
+                <div class="movie-item" data-id="the-notebook">
+                    <div class="poster">The Notebook</div>
+                    <div class="info">
+                        <h3>The Notebook</h3>
+                        <p>2004</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="titanic">
+                    <div class="poster">Titanic</div>
+                    <div class="info">
+                        <h3>Titanic</h3>
+                        <p>1997</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="when-harry-met-sally">
+                    <div class="poster">When Harry Met Sally</div>
+                    <div class="info">
+                        <h3>When Harry Met Sally</h3>
+                        <p>1989</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="pretty-woman">
+                    <div class="poster">Pretty Woman</div>
+                    <div class="info">
+                        <h3>Pretty Woman</h3>
+                        <p>1990</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="la-la-land">
+                    <div class="poster">La La Land</div>
+                    <div class="info">
+                        <h3>La La Land</h3>
+                        <p>2016</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="crazy-rich-asians">
+                    <div class="poster">Crazy Rich Asians</div>
+                    <div class="info">
+                        <h3>Crazy Rich Asians</h3>
+                        <p>2018</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="bridget-jones-diary">
+                    <div class="poster">Bridget Jones's Diary</div>
+                    <div class="info">
+                        <h3>Bridget Jones's Diary</h3>
+                        <p>2001</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="movie-item" data-id="notting-hill">
+                    <div class="poster">Notting Hill</div>
+                    <div class="info">
+                        <h3>Notting Hill</h3>
+                        <p>1999</p>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                            <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                            <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+ 
+    <!-- Player Modal -->
+    <div class="player-modal" id="player-modal">
+        <div class="player-box">
+            <video id="movie-player" controls>
+                <source id="player-source" src="" type="video/mp4">
+                Your browser doesn’t support video playback.
+            </video>
+            <button class="close-btn" onclick="closePlayer()">X</button>
+        </div>
+    </div>
+ 
+    <script>
+        const searchBar = document.getElementById('search-bar');
+        const movieItems = document.getElementsByClassName('movie-item');
+        const playerModal = document.getElementById('player-modal');
+        const moviePlayer = document.getElementById('movie-player');
+        const playerSource = document.getElementById('player-source');
+        let isAdmin = false;
+ 
+        // Load stored data from localStorage
+        const storedData = JSON.parse(localStorage.getItem('movieData')) || {};
+        Array.from(movieItems).forEach(item => {
+            const id = item.getAttribute('data-id');
+            if (storedData[id]) {
+                item.dataset.stream = storedData[id].stream || 'https://real-debrid.com/d/YOUR_LINK_HERE';
+                item.dataset.poster = storedData[id].poster || '';
+                if (storedData[id].poster) {
+                    item.querySelector('.poster').style.backgroundImage = `url(${storedData[id].poster})`;
+                    item.querySelector('.poster').textContent = '';
+                }
+            } else {
+                item.dataset.stream = 'https://real-debrid.com/d/YOUR_LINK_HERE';
+                item.dataset.poster = '';
+            }
+        });
+ 
+        // Search functionality
+        searchBar.addEventListener('input', () => {
+            const query = searchBar.value.toLowerCase();
+            Array.from(movieItems).forEach(item => {
+                const title = item.querySelector('h3').textContent.toLowerCase();
+                item.style.display = title.includes(query) ? '' : 'none';
+            });
+        });
+ 
+        // Admin login
+        function adminLogin() {
+            const password = prompt('Enter admin password:');
+            if (password === '10211985') {
+                isAdmin = true;
+                document.body.classList.add('admin-mode');
+                alert('Admin mode activated!');
+            } else {
+                alert('Incorrect password.');
+            }
+        }
+ 
+        // Player functions
+        function openPlayer(button) {
+            const item = button.closest('.movie-item');
+            const url = item.dataset.stream;
+            if (url === 'https://real-debrid.com/d/YOUR_LINK_HERE') {
+                alert('Please set a valid stream source in admin mode.');
+                return;
+            }
+            playerSource.src = url;
+            moviePlayer.load();
+            playerModal.style.display = 'flex';
+            moviePlayer.play();
+        }
+ 
+        function closePlayer() {
+            moviePlayer.pause();
+            playerModal.style.display = 'none';
+            playerSource.src = '';
+        }
+ 
+        // Edit stream
+        function editStream(button) {
+            if (!isAdmin) return;
+            const item = button.closest('.movie-item');
+            const id = item.getAttribute('data-id');
+            const currentStream = item.dataset.stream;
+            const newStream = prompt(`Enter new stream source for ${item.querySelector('h3').textContent}:`, currentStream);
+            if (newStream) {
+                item.dataset.stream = newStream;
+                storedData[id] = storedData[id] || {};
+                storedData[id].stream = newStream;
+                localStorage.setItem('movieData', JSON.stringify(storedData));
+                alert('Stream source updated!');
+            }
+        }
+ 
+        // Edit poster
+        function editPoster(button) {
+            if (!isAdmin) return;
+            const item = button.closest('.movie-item');
+            const id = item.getAttribute('data-id');
+            const currentPoster = item.dataset.poster;
+            const newPoster = prompt(`Enter new poster URL for ${item.querySelector('h3').textContent}:`, currentPoster);
+            if (newPoster) {
+                item.dataset.poster = newPoster;
+                item.querySelector('.poster').style.backgroundImage = `url(${newPoster})`;
+                item.querySelector('.poster').textContent = '';
+                storedData[id] = storedData[id] || {};
+                storedData[id].poster = newPoster;
+                localStorage.setItem('movieData', JSON.stringify(storedData));
+                alert('Poster updated!');
+            }
+        }
+ 
+        // Add movie
+        function addMovie(category) {
+            if (!isAdmin) return;
+            const title = prompt(`Enter movie title for ${category}:`);
+            if (!title) return;
+            const year = prompt(`Enter release year for ${title}:`);
+            if (!year) return;
+            const stream = prompt(`Enter stream URL for ${title}:`, 'https://real-debrid.com/d/YOUR_LINK_HERE');
+            if (!stream) return;
+            const poster = prompt(`Enter poster URL for ${title} (optional):`);
+ 
+            const id = `${category}-${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`; // Unique ID
+            const movieRow = document.querySelector(`[data-category="${category}"] .movie-row`);
+            const newMovie = document.createElement('div');
+            newMovie.className = 'movie-item';
+            newMovie.setAttribute('data-id', id);
+            newMovie.dataset.stream = stream;
+            newMovie.dataset.poster = poster || '';
+            newMovie.innerHTML = `
+                <div class="poster">${poster ? '' : title}</div>
+                <div class="info">
+                    <h3>${title}</h3>
+                    <p>${year}</p>
+                    <div class="btn-group">
+                        <button class="play-btn" onclick="openPlayer(this)">Play</button>
+                        <button class="edit-stream-btn" onclick="editStream(this)">Edit Stream</button>
+                        <button class="edit-poster-btn" onclick="editPoster(this)">Edit Poster</button>
+                    </div>
+                </div>
+            `;
+            if (poster) {
+                newMovie.querySelector('.poster').style.backgroundImage = `url(${poster})`;
+            }
+            movieRow.appendChild(newMovie);
+ 
+            storedData[id] = { stream, poster, title, year, category };
+            localStorage.setItem('movieData', JSON.stringify(storedData));
+            alert(`Added ${title} to ${category}!`);
+        }
+ 
+        // Export HTML
+        function exportHTML() {
+            if (!isAdmin) return;
+            const filename = prompt('Enter filename for the exported HTML (without extension):', 'notflix-updated');
+            if (!filename) return;
+ 
+            // Clone the current document
+            const docClone = document.cloneNode(true);
+ 
+            // Update all movie items with their current data attributes
+            const clonedItems = docClone.getElementsByClassName('movie-item');
+            Array.from(clonedItems).forEach(item => {
+                const id = item.getAttribute('data-id');
+                const stream = item.dataset.stream || 'https://real-debrid.com/d/YOUR_LINK_HERE';
+                const poster = item.dataset.poster || '';
+                item.setAttribute('data-stream', stream);
+                item.setAttribute('data-poster', poster);
+                if (poster) {
+                    item.querySelector('.poster').style.backgroundImage = `url(${poster})`;
+                    item.querySelector('.poster').textContent = '';
+                }
+            });
+ 
+            // Remove admin-mode class and hide export button in exported file
+            docClone.body.classList.remove('admin-mode');
+            docClone.getElementById('export-html').style.display = 'none';
+ 
+            // Remove script tag and inline all data
+            const scriptTag = docClone.querySelector('script');
+            scriptTag.parentNode.removeChild(scriptTag);
+            const newScript = docClone.createElement('script');
+            newScript.textContent = `
+                const searchBar = document.getElementById('search-bar');
+                const movieItems = document.getElementsByClassName('movie-item');
+                const playerModal = document.getElementById('player-modal');
+                const moviePlayer = document.getElementById('movie-player');
+                const playerSource = document.getElementById('player-source');
+ 
+                searchBar.addEventListener('input', () => {
+                    const query = searchBar.value.toLowerCase();
+                    Array.from(movieItems).forEach(item => {
+                        const title = item.querySelector('h3').textContent.toLowerCase();
+                        item.style.display = title.includes(query) ? '' : 'none';
+                    });
+                });
+ 
+                function openPlayer(button) {
+                    const item = button.closest('.movie-item');
+                    const url = item.dataset.stream;
+                    if (url === 'https://real-debrid.com/d/YOUR_LINK_HERE') {
+                        alert('Please set a valid stream source.');
+                        return;
+                    }
+                    playerSource.src = url;
+                    moviePlayer.load();
+                    playerModal.style.display = 'flex';
+                    moviePlayer.play();
+                }
+ 
+                function closePlayer() {
+                    moviePlayer.pause();
+                    playerModal.style.display = 'none';
+                    playerSource.src = '';
+                }
+            `;
+            docClone.body.appendChild(newScript);
+ 
+            // Generate and download the file
+            const htmlContent = '<!DOCTYPE html>\n' + docClone.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
